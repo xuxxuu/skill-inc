@@ -1,9 +1,15 @@
 import pygame
-from core.sprites.button import BuyButton
-from core.player import Player
-from core.services.renderer import Renderer
+from pygame.typing import ColorLike, Point
+from skills import SkillHandler
 
-TICK_EVENT = pygame.event.custom_type()
+
+class Button(pygame.sprite.Sprite):
+    def __init__(self, tag: str, pos: Point, color: ColorLike, size: Point):
+        super().__init__()
+        self.tag = tag
+        self.image = pygame.Surface(size)
+        self.image.fill(color)
+        self.rect = self.image.get_rect(topleft=pos)
 
 
 class Game:
@@ -11,35 +17,27 @@ class Game:
         pygame.init()
         self.screen = pygame.display.set_mode((800, 600))
         self.clock = pygame.time.Clock()
-        self.player = Player()
-        self.renderer = Renderer(self.screen, self.player)
-        self.all_sprites = pygame.sprite.LayeredUpdates()
-        self.all_sprites.add(BuyButton.generate_ui_buttons())
-        self.time_between_ticks = 1000
-        pygame.time.set_timer(TICK_EVENT, self.time_between_ticks)
-
-    def upgrade_tick_speed(self, upgrade_ratio: float) -> None:
-        self.time_between_ticks = int(self.time_between_ticks * upgrade_ratio)
+        self.skill_handler = SkillHandler()
+        self.wc_button = Button("woodcutting", (100, 100), (255, 0, 0), (100, 100))  # temp button
+        self.fishing_button = Button("fishing", (100, 250), (0, 0, 255), (100, 100))  # temp button
+        self.buttons = pygame.sprite.LayeredUpdates(self.wc_button, self.fishing_button)
 
     def run(self):
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
-                    return
+                    exit()
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    button_maybe = iter(self.all_sprites.get_sprites_at(event.pos))
-                    if button := next(button_maybe, None):  # the one time i will use walrus operator
-                        button.click(self.player.inventory)
-                        self.renderer.update_currency_render()
-                        self.upgrade_tick_speed(0.8)
-                        pygame.time.set_timer(TICK_EVENT, self.time_between_ticks)
-                if event.type == TICK_EVENT:
-                    print(f"One tick has passed: {self.time_between_ticks}")
+                    # create iter here to then be able to call next() with a default
+                    button_maybe = iter(self.buttons.get_sprites_at(event.pos))
+                    # the rare walrus operator. tbh i just think this approach looked cleaner. No other reason.
+                    if button := next(button_maybe, None):
+                        self.skill_handler.execute_skill(button.tag)
 
-            self.screen.fill("blue")
-            self.all_sprites.draw(self.screen)
-            self.renderer.update()
+            self.screen.fill((0, 0, 0))
+            self.buttons.draw(self.screen)
+
             pygame.display.flip()
             self.clock.tick(60)
 
